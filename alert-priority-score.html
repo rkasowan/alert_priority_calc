@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Alert priority score: the Operational Status effect</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F5F7;--panel:#FFFFFF;--ink:#17202B;--ink-2:#4D5966;--rule:#D5DBE1;
+  --svc:#3346B0;--svc-bg:#E4E8FA;--sev:#1C7465;--sev-bg:#DDF1EC;--ci:#7A5A12;--ci-bg:#F6ECD4;
+  --minor:#5B6673;--minor-bg:#E8ECEF;--loss:#B3261E;--loss-bg:#FBE4E2;--gain:#1C7465;
+  --digit-bg:#1B2531;--digit-ink:#F3F5F7;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#10161D;--panel:#18212B;--ink:#E8EDF2;--ink-2:#A3AFBC;--rule:#2C3845;
+  --svc:#9DAAF2;--svc-bg:#232C5A;--sev:#7FD3C0;--sev-bg:#143A33;--ci:#E6C274;--ci-bg:#3D3016;
+  --minor:#AEB8C3;--minor-bg:#26313C;--loss:#F2968F;--loss-bg:#4A1D1A;--gain:#7FD3C0;
+  --digit-bg:#0A0F14;--digit-ink:#E8EDF2;}}
+:root[data-theme="dark"]{
+  --bg:#10161D;--panel:#18212B;--ink:#E8EDF2;--ink-2:#A3AFBC;--rule:#2C3845;
+  --svc:#9DAAF2;--svc-bg:#232C5A;--sev:#7FD3C0;--sev-bg:#143A33;--ci:#E6C274;--ci-bg:#3D3016;
+  --minor:#AEB8C3;--minor-bg:#26313C;--loss:#F2968F;--loss-bg:#4A1D1A;--gain:#7FD3C0;
+  --digit-bg:#0A0F14;--digit-ink:#E8EDF2;}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "Public Sans",system-ui,-apple-system,"Segoe UI",Arial,sans-serif}
+main{max-width:1040px;margin:0 auto;padding:2.5rem 1.5rem 3rem}
+h1{font-size:clamp(1.8rem,4vw,2.6rem);line-height:1.15;font-weight:700;margin:0 0 .6rem;max-width:22ch;letter-spacing:-.01em}
+.lede{color:var(--ink-2);max-width:66ch;margin:0 0 2rem}
+h2{font-size:1.15rem;font-weight:700;margin:0 0 .75rem}
+.compare{background:var(--panel);border:1px solid var(--rule);border-radius:14px;padding:1.5rem;margin-bottom:1.5rem}
+.meter{display:grid;grid-template-columns:minmax(0,220px) minmax(0,1fr);gap:1rem 1.5rem;align-items:center;padding:1rem 0}
+.meter+.meter{border-top:1px solid var(--rule)}
+.meter .who{font-weight:500}
+.meter .sub{display:block;color:var(--ink-2);font-size:.88rem;font-weight:400}
+.odo{display:flex;flex-wrap:wrap;gap:4px;align-items:flex-end;font-family:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace}
+.d{display:inline-flex;flex-direction:column;align-items:center;gap:4px}
+.d b{display:block;min-width:1.55em;text-align:center;font-weight:500;font-size:clamp(1.3rem,3.2vw,2.1rem);line-height:1.35;background:var(--digit-bg);color:var(--digit-ink);border-radius:5px;border-bottom:4px solid var(--c,transparent);transition:border-color .2s}
+.d.dim b{color:color-mix(in srgb,var(--digit-ink) 38%,transparent)}
+.d.dot b{background:none;color:var(--ink);min-width:.5em}
+.list{font-family:"Public Sans",sans-serif;margin-left:auto;text-align:right;color:var(--ink-2);font-size:.88rem}
+.list strong{display:block;color:var(--ink);font-size:1.4rem;font-weight:700}
+.delta{margin-top:1rem;padding:.9rem 1rem;border-radius:10px;background:var(--loss-bg);color:var(--loss);font-weight:500}
+.delta.ok{background:var(--sev-bg);color:var(--gain)}
+.legend{display:flex;flex-wrap:wrap;gap:.5rem 1.25rem;margin-top:1rem;font-size:.85rem;color:var(--ink-2)}
+.legend span::before{content:"";display:inline-block;width:14px;height:4px;border-radius:2px;background:var(--c);margin-right:6px;vertical-align:middle}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1.5rem}
+.card{background:var(--panel);border:1px solid var(--rule);border-radius:14px;padding:1.5rem}
+.field{margin-bottom:1.1rem}
+.field label,.field .lab{display:flex;justify-content:space-between;font-size:.92rem;color:var(--ink-2);margin-bottom:.35rem}
+.field output{color:var(--ink);font-weight:500}
+select,input[type=range]{width:100%}
+select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--rule);border-radius:8px;padding:.45rem .6rem}
+input[type=range]{accent-color:var(--svc)}
+.seg{display:flex;border:1px solid var(--rule);border-radius:9px;overflow:hidden}
+.seg button{flex:1;font:inherit;font-size:.92rem;padding:.55rem .5rem;border:0;background:var(--bg);color:var(--ink-2);cursor:pointer}
+.seg button+button{border-left:1px solid var(--rule)}
+.seg button[aria-pressed="true"]{background:var(--svc-bg);color:var(--svc);font-weight:500}
+.seg button[aria-pressed="true"].bad{background:var(--loss-bg);color:var(--loss)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--svc);outline-offset:2px}
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+th,td{text-align:left;padding:.5rem .4rem;border-bottom:1px solid var(--rule);vertical-align:top}
+th{color:var(--ink-2);font-weight:500}
+td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+td .sw{display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--c);margin-right:8px}
+tr.cut td{color:var(--loss);text-decoration:line-through}
+.notes{margin-top:1.5rem;color:var(--ink-2);font-size:.88rem;max-width:80ch}
+.notes p{margin:.4rem 0}
+@media (max-width:760px){.grid{grid-template-columns:minmax(0,1fr)}.meter{grid-template-columns:minmax(0,1fr)}.list{margin-left:0;text-align:left;width:100%}}
+@media (prefers-reduced-motion:reduce){.d b{transition:none}}
+</style>
+</head>
+<body>
+<main>
+  <h1>One status field can bury a critical alert</h1>
+  <p class="lede">ServiceNow scores every alert like an odometer. The leading digits come from the business services the alert affects. A service instance counts only when its Operational Status is Operational. If it isn't, those leading digits read zero, whatever the outage looks like.</p>
+
+  <section class="compare" aria-labelledby="cmp">
+    <h2 id="cmp">Same alert, two statuses</h2>
+    <div class="meter">
+      <div class="who">Operational<span class="sub">Service counted in impact</span></div>
+      <div style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:1rem">
+        <div class="odo" id="odoA" aria-live="polite"></div>
+        <div class="list">Alerts list shows<strong id="listA">0</strong></div>
+      </div>
+    </div>
+    <div class="meter">
+      <div class="who" id="whoB">Not operational<span class="sub" id="subB">Service skipped by impact</span></div>
+      <div style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:1rem">
+        <div class="odo" id="odoB" aria-live="polite"></div>
+        <div class="list">Alerts list shows<strong id="listB">0</strong></div>
+      </div>
+    </div>
+    <div class="delta" id="delta"></div>
+    <div class="legend">
+      <span style="--c:var(--svc)">Application services</span>
+      <span style="--c:var(--sev)">Severity</span>
+      <span style="--c:var(--ci)">CI type</span>
+      <span style="--c:var(--minor)">Role, secondary, state</span>
+    </div>
+  </section>
+
+  <div class="grid">
+    <section class="card" aria-labelledby="set">
+      <h2 id="set">Build the alert</h2>
+      <div class="field">
+        <span class="lab">Status of the service instance in the second row</span>
+        <div class="seg" role="group" aria-label="Second row operational status">
+          <button type="button" data-op="0" aria-pressed="true" class="bad">Not operational</button>
+          <button type="button" data-op="1" aria-pressed="false">Operational</button>
+        </div>
+      </div>
+      <div class="field"><label for="ns">Impacted service instances <output id="nsO">2</output></label><input id="ns" type="range" min="0" max="5" step="1" value="2"></div>
+      <div class="field"><label for="crit">Business criticality of those services</label>
+        <select id="crit"><option value="4">1 - most critical</option><option value="3" selected>2 - somewhat critical</option><option value="2">3 - less critical</option><option value="1">4 - not critical</option></select></div>
+      <div class="field"><label for="sev">Alert severity</label>
+        <select id="sev"><option value="4">Critical</option><option value="3" selected>Major</option><option value="2">Minor</option><option value="1">Warning</option></select></div>
+      <div class="field"><label for="ct">CI type weight <output id="ctO">60</output></label><input id="ct" type="range" min="0" max="99" step="1" value="60"></div>
+      <div class="field"><label for="role">Role</label>
+        <select id="role"><option value="3" selected>Parent</option><option value="2">None</option><option value="1">Secondary</option></select></div>
+      <div class="field"><label for="sc">Secondary alerts <output id="scO">2</output></label><input id="sc" type="range" min="0" max="9" step="1" value="2"></div>
+      <div class="field" style="margin-bottom:0"><label for="st">State</label>
+        <select id="st"><option value="1" selected>Open</option><option value="2">Reopen</option><option value="3">Flapping</option></select></div>
+    </section>
+
+    <section class="card" aria-labelledby="brk">
+      <h2 id="brk">Where the points come from</h2>
+      <table>
+        <thead><tr><th>Category</th><th class="n" style="text-align:right">Value</th><th class="n" style="text-align:right">Weight</th><th class="n" style="text-align:right">Points</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <p class="notes" style="margin-top:1rem">Points shown for the operational row. A struck-through line is what the second row loses.</p>
+    </section>
+  </div>
+
+  <div class="notes">
+    <p>Formula, from ServiceNow's alert priority documentation: services × 1,000,000 + severity × 100,000 + CI type × 100 + role × 10 + secondary count + state × 0.001. The Alerts list shows the score divided by 1,000.</p>
+    <p>Services value is the sum of each impacted service's mapped business criticality (1 - most critical = 4 points down to 4 - not critical = 1). Only Service Instance classes (cmdb_ci_service_auto and extensions) that are operational take part in impact calculation.</p>
+    <p>Severity, role, and CI type point values here are illustrative. Your instance's values live in em_alert_priority_category_mapping and em_alert_priority_ci_type.</p>
+  </div>
+</main>
+<script>
+(function(){
+  var opB=0;
+  function $(id){return document.getElementById(id)}
+  var ids=['ns','crit','sev','ct','role','sc','st'];
+  ids.forEach(function(id){$(id).addEventListener('input',calc)});
+  document.querySelectorAll('.seg button').forEach(function(b){
+    b.addEventListener('click',function(){
+      opB=+b.dataset.op;
+      document.querySelectorAll('.seg button').forEach(function(x){x.setAttribute('aria-pressed',x===b?'true':'false')});
+      calc();
+    });
+  });
+  var bandColor=['svc','svc','sev','none','ci','ci','minor','minor'];
+  function odometer(el,score){
+    var ip=Math.floor(score+1e-9), frac=Math.round((score-ip)*1000);
+    var s=String(ip).padStart(8,'0').slice(-8), lead=true, html='';
+    for(var i=0;i<8;i++){
+      if(s[i]!=='0')lead=false;
+      var c=bandColor[i]==='none'?'transparent':'var(--'+bandColor[i]+')';
+      html+='<span class="d'+(lead&&i<7?' dim':'')+'"><b style="--c:'+c+'">'+s[i]+'</b></span>';
+    }
+    html+='<span class="d dot"><b>.</b></span>';
+    var f=String(frac).padStart(3,'0');
+    for(var j=0;j<3;j++){html+='<span class="d'+(j<2&&f[j]==='0'?' dim':'')+'"><b style="--c:'+(j===2?'var(--minor)':'transparent')+'">'+f[j]+'</b></span>';}
+    el.innerHTML=html;
+    el.setAttribute('aria-label','Score '+score.toLocaleString('en-US',{maximumFractionDigits:3}));
+  }
+  function fmt(n){return n.toLocaleString('en-US',{maximumFractionDigits:3})}
+  function calc(){
+    var ns=+$('ns').value,crit=+$('crit').value,sev=+$('sev').value,ct=+$('ct').value,role=+$('role').value,sc=+$('sc').value,st=+$('st').value;
+    $('nsO').textContent=ns;$('ctO').textContent=ct;$('scO').textContent=sc;
+    var svc=ns*crit;
+    var rest=sev*1e5+ct*100+role*10+sc+st*0.001;
+    var a=svc*1e6+rest, b=(opB?svc*1e6:0)+rest;
+    a=Math.round(a*1000)/1000;b=Math.round(b*1000)/1000;
+    odometer($('odoA'),a);odometer($('odoB'),b);
+    $('listA').textContent=Math.floor(a/1000).toLocaleString('en-US');
+    $('listB').textContent=Math.floor(b/1000).toLocaleString('en-US');
+    $('whoB').firstChild.nodeValue=opB?'Operational':'Not operational';
+    $('subB').textContent=opB?'Service counted in impact':'Service skipped by impact';
+    var d=$('delta'),lost=a-b;
+    if(lost>0){
+      d.className='delta';
+      d.textContent='Not operational drops this alert by '+fmt(Math.round(lost))+' points, from '+Math.floor(a/1000).toLocaleString('en-US')+' to '+Math.floor(b/1000).toLocaleString('en-US')+' in the Alerts list. It now ranks below any alert touching even one operational, non-critical service.';
+    }else if(svc===0){
+      d.className='delta ok';
+      d.textContent='No impacted services selected, so status makes no difference here. Add a service to see the gap.';
+    }else{
+      d.className='delta ok';
+      d.textContent='Both rows match. With the service marked operational, its criticality reaches the score.';
+    }
+    var rows=[
+      ['Application services','svc',svc,'1,000,000',svc*1e6,!opB&&svc>0],
+      ['Severity','sev',sev,'100,000',sev*1e5,false],
+      ['CI type','ci',ct,'100',ct*100,false],
+      ['Role','minor',role,'10',role*10,false],
+      ['Secondary','minor',sc,'1',sc,false],
+      ['State','minor',st,'0.001',st*0.001,false]
+    ];
+    $('rows').innerHTML=rows.map(function(r){
+      return '<tr'+(r[5]?' class="cut"':'')+'><td><span class="sw" style="--c:var(--'+r[1]+')"></span>'+r[0]+'</td><td class="n">'+r[2]+'</td><td class="n">'+r[3]+'</td><td class="n">'+fmt(Math.round(r[4]*1000)/1000)+'</td></tr>';
+    }).join('')+'<tr><td><strong>Total</strong></td><td></td><td></td><td class="n"><strong>'+fmt(a)+'</strong></td></tr>';
+  }
+  calc();
+})();
+</script>
+</body>
+</html>
